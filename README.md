@@ -55,7 +55,7 @@ Aplicación de prueba técnica Flutter que simula un dashboard de trading profes
 
 ## 📷 Capturas
 
-_(Agregar al finalizar el desarrollo)_
+(Pendientes de Agregar hasta finalizar el desarrollo)
 
 ---
 
