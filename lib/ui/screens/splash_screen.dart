@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,9 +31,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Espera 2.5s y navega al Dashboard
     Timer(const Duration(milliseconds: 2500), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+      Navigator.pushNamed(context, 'home');
     });
   }
 

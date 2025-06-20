@@ -1,3 +1,6 @@
+import 'package:app_binance/providers/mini_ticker_provider.dart';
+import 'package:app_binance/providers/order_book_provider.dart';
+import 'package:app_binance/services/binance_websocket_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_binance/providers/market_ticker_provider.dart';
@@ -5,10 +8,26 @@ import 'package:app_binance/ui/screens/splash_screen.dart';
 import 'package:app_binance/ui/themes/app_theme.dart';
 
 void main() {
+  final webSocketService = BinanceWebSocketService([
+    'btcusdt@ticker',
+    'ethusdt@ticker',
+    'btcusdt@depth',
+    'ethusdt@miniTicker',
+  ]);
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => MarketTickerProvider(),
-      child: const MyApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => MarketTickerProvider(webSocketService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => MiniTickerProvider(webSocketService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => OrderBookProvider(webSocketService),
+        ),
+      ],
     ),
   );
 }

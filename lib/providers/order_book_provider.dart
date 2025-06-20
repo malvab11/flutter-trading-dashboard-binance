@@ -1,63 +1,26 @@
-import 'package:flutter/material.dart';
+import 'package:app_binance/data/entities/order_book_entity.dart';
+import 'package:app_binance/data/mappers/order_mapper.dart';
+import 'package:app_binance/data/models/order_book_model.dart';
+import 'package:flutter/foundation.dart';
 import '../services/binance_websocket_service.dart';
 
 class OrderBookProvider with ChangeNotifier {
-  final String pair;
-  late final BinanceWebSocketService _service;
-  List<List<String>> _asks = [];
-  List<List<String>> _bids = [];
-  double _spread = 0.0;
+  final BinanceWebSocketService _webSocketService;
 
-  OrderBookProvider(this.pair) {
-    _service = BinanceWebSocketService(['$pair@depth20@100ms']);
-    _listenToStream();
+  final Map<String, OrderBookEntity> _orderBooks = {};
+
+  OrderBookProvider(this._webSocketService) {
+    _webSocketService.stream.listen(_handleData);
   }
 
-  List<List<String>> get asks => _asks;
-  List<List<String>> get bids => _bids;
+  OrderBookEntity? getOrderBook(String symbol) => _orderBooks[symbol];
 
-  /// Spread entre mejor ask y mejor bid
-  double get spread => _spread;
-
-  /// Estado actual de la conexión WebSocket
-  ValueNotifier<bool> get isConnected => _service.connectionStatus;
-
-  void _listenToStream() {
-    _service.stream.listen(
-      (data) {
-        try {
-          if (data['asks'] != null && data['bids'] != null) {
-            _asks = List<List<String>>.from(
-              data['asks'].map((e) => List<String>.from(e)),
-            );
-            _bids = List<List<String>>.from(
-              data['bids'].map((e) => List<String>.from(e)),
-            );
-
-            _calculateSpread();
-            notifyListeners();
-          }
-        } catch (e) {
-          debugPrint('Error parsing order book: $e');
-        }
-      },
-      onError: (e) {
-        debugPrint('OrderBook stream error: $e');
-      },
-    );
-  }
-
-  void _calculateSpread() {
-    if (_asks.isNotEmpty && _bids.isNotEmpty) {
-      final bestAsk = double.tryParse(_asks.first[0]) ?? 0.0;
-      final bestBid = double.tryParse(_bids.first[0]) ?? 0.0;
-      _spread = (bestAsk - bestBid).abs();
+  void _handleData(Map<String, dynamic> json) {
+    if (json['bids'] != null && json['asks'] != null && json['s'] != null) {
+      final model = OrderBookModel.fromJson(json);
+      final entity = model.toEntity();
+      _orderBooks[entity.symbol] = entity;
+      notifyListeners();
     }
-  }
-
-  @override
-  void dispose() {
-    _service.close();
-    super.dispose();
   }
 }
