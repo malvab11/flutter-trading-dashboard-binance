@@ -6,6 +6,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 class BinanceWebSocketService {
   final List<String> _initialStreams;
   late WebSocketChannel _channel;
+
   final _controller = StreamController<Map<String, dynamic>>.broadcast();
   final _cache = <String, Map<String, dynamic>>{};
   Timer? _reconnectTimer;
@@ -14,17 +15,18 @@ class BinanceWebSocketService {
   bool _shouldReconnect = true;
   DateTime _lastEmit = DateTime.now();
 
-  /// Estado de conexión: true si conectado, false si desconectado
+  /// Notificador para estado de conexión (conectado/desconectado)
   final ValueNotifier<bool> connectionStatus = ValueNotifier(false);
 
+  /// Constructor: requiere lista de streams iniciales (ej: ["btcusdt@ticker", "ethusdt@depth20@100ms"])
   BinanceWebSocketService(this._initialStreams) {
     _connect();
   }
 
-  /// Exponer el stream para la UI o los providers
+  /// Exposición del stream de datos a la UI o lógica de presentación
   Stream<Map<String, dynamic>> get stream => _controller.stream;
 
-  /// Últimos datos cacheados por tipo de stream
+  /// Acceso a datos cacheados por stream
   Map<String, Map<String, dynamic>> get lastData => _cache;
 
   void _connect() {
@@ -50,20 +52,18 @@ class BinanceWebSocketService {
         }
       },
       onError: (error) {
-        print('WebSocket error: $error');
+        if (kDebugMode) print('WebSocket error: $error');
         _scheduleReconnect();
       },
       onDone: () {
-        print('WebSocket closed');
+        if (kDebugMode) print('WebSocket closed');
         _scheduleReconnect();
       },
     );
   }
 
   void _handleTicker(Map<String, dynamic> data) {
-    if (data.containsKey('s') &&
-        data.containsKey('c') &&
-        data.containsKey('P')) {
+    if (data.containsKey('s') && data.containsKey('c')) {
       final streamKey = data['s'].toString().toLowerCase();
       _cache[streamKey] = data;
       _emitThrottled(data);
@@ -91,6 +91,7 @@ class BinanceWebSocketService {
     final now = DateTime.now();
     if (now.difference(_lastEmit).inMilliseconds > 300) {
       _lastEmit = now;
+      if (kDebugMode) print('🟡 Emitiendo datos al stream: $data');
       _controller.add(data);
     }
   }
@@ -103,11 +104,12 @@ class BinanceWebSocketService {
     connectionStatus.value = false;
 
     _reconnectTimer = Timer(const Duration(seconds: 3), () {
-      print('Intentando reconectar...');
+      if (kDebugMode) print('🔁 Intentando reconectar...');
       _connect();
     });
   }
 
+  /// Suscripción dinámica a nuevos streams
   void subscribeToStreams(List<String> streams) {
     if (!_isConnected) return;
     final payload = {
@@ -118,6 +120,7 @@ class BinanceWebSocketService {
     _channel.sink.add(jsonEncode(payload));
   }
 
+  /// Cancelación dinámica de streams
   void unsubscribeFromStreams(List<String> streams) {
     if (!_isConnected) return;
     final payload = {
@@ -128,10 +131,18 @@ class BinanceWebSocketService {
     _channel.sink.add(jsonEncode(payload));
   }
 
+  /// Reconectar manualmente
+  void reconnect() {
+    _shouldReconnect = true;
+    close();
+    _connect();
+  }
+
+  /// Cierre manual (usado por la app para liberar recursos)
   void close() {
     _shouldReconnect = false;
     _reconnectTimer?.cancel();
-    _controller.close();
+    if (!_controller.isClosed) _controller.close();
     _isConnected = false;
     connectionStatus.value = false;
     _channel.sink.close();
