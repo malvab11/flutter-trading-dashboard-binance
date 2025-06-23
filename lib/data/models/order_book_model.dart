@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
+
 class OrderBookModel {
   final String symbol;
-  final List<List<String>> bids; // Esto es : [price, quantity]
+  final List<List<String>> bids;
   final List<List<String>> asks;
 
   OrderBookModel({
@@ -10,14 +12,26 @@ class OrderBookModel {
   });
 
   factory OrderBookModel.fromJson(Map<String, dynamic> json) {
+    final rawSymbol = (json['symbol'] ?? json['s'] ?? '').toString();
+
+    List<List<String>> parseList(dynamic rawList) {
+      if (rawList is List) {
+        return rawList.map<List<String>>((e) {
+          if (e is List) {
+            return e.map((v) => v.toString()).toList();
+          } else {
+            debugPrint('⚠️ Elemento inesperado en lista: $e');
+            return [];
+          }
+        }).toList();
+      }
+      return [];
+    }
+
     return OrderBookModel(
-      symbol: json['s'] ?? '',
-      bids: List<List<String>>.from(
-        json['bids']?.map((e) => List<String>.from(e)) ?? [],
-      ),
-      asks: List<List<String>>.from(
-        json['asks']?.map((e) => List<String>.from(e)) ?? [],
-      ),
+      symbol: rawSymbol,
+      bids: parseList(json['bids'] ?? json['b']),
+      asks: parseList(json['asks'] ?? json['a']),
     );
   }
 }
